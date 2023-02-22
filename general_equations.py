@@ -3,7 +3,6 @@
 import squigglepy as sq
 from squigglepy.numbers import K, M, B
 import numpy as np
-import copy
 
 SIMULATIONS = 100*K
 
@@ -60,11 +59,8 @@ def one_model_dalys_per_1000_by_reducing_risk(p_x_risk, power, probability_succe
 
 ## GHD Intervention
 
-def cost_per_daly_ghd():
-    return 50
-
-def dalys_per_1000_certain_intervention():
-    return 1000/cost_per_daly_ghd()
+def dalys_per_1000_ghd_intervention():
+    return sq.sample(sq.lognorm(9, 24), n=SIMULATIONS)
 
 ## Ambiguity Aversion Modeling
 
