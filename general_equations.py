@@ -4,7 +4,35 @@ import squigglepy as sq
 from squigglepy.numbers import K, M, B
 import numpy as np
 
-SIMULATIONS = 100*K
+SIMULATIONS = 10*M
+
+def mix_models(models, weights=None):
+    if weights is None:
+        weights = [1/len(models) for model in models]
+    
+    model_mix = sq.mixture(models, weights)
+    sample = sq.sample(model_mix, n=SIMULATIONS)
+    return sample
+
+
+def create_variables(models_dict, weights_dict):
+    p_success_models = models_dict['p_success']
+    risk_models = models_dict['risk']
+    bp_per_billion_models = models_dict['bp_per_billion_if_success']
+    times_credit_if_success_models = models_dict['times_credit_if_success']
+
+    p_success_weights = weights_dict['p_success']
+    risk_weights = weights_dict['risk']
+    bp_per_billion_weights = weights_dict['bp_per_billion_if_success']
+    times_credit_if_success_weights = weights_dict['times_credit_if_success']
+
+
+    p_success = mix_models(p_success_models, p_success_weights)
+    risk = mix_models(risk_models, risk_weights)
+    bp_per_billion_if_success = mix_models(bp_per_billion_models, bp_per_billion_weights)
+    times_credit_if_success = mix_models(times_credit_if_success_models, times_credit_if_success_weights)
+
+    return p_success, risk, bp_per_billion_if_success, times_credit_if_success
 
 def get_pct(num):
     return "{:.2%}".format(num)
@@ -48,11 +76,21 @@ def lifespan_person():
 def one_basis_point():
     return 0.0001
 
-def one_model_dalys_per_1000_by_reducing_risk(p_x_risk, power, probability_success, bp_per_billion_if_success, times_credit_if_success):
-    value_status_quo = years_healthy_per_year()*lifespan_person()*world_population()*times_credit_if_success # TODO: Fix this to match the cross-cause model
-    bp_lowered_risk = probability_success*bp_per_billion_if_success*1*K/(1*B)
+def generate_success_bernoullis(probability_success):
+    successes = []
+    for i in range(SIMULATIONS):
+        p_success_i = sq.sample(sq.discrete({0: 1-probability_success[i], 1: probability_success[i]}), n=1)
+        successes.append(p_success_i)
+    return np.array(successes)
 
-    risk_reduction = bp_lowered_risk*one_basis_point()
+def one_model_dalys_per_1000_by_reducing_risk(p_x_risk, power, probability_success, bp_per_billion_if_success, times_credit_if_success):
+    value_status_quo = years_healthy_per_year()*lifespan_person()*world_population()*times_credit_if_success 
+    
+    did_intervention_succeed = generate_success_bernoullis(probability_success)
+    
+    bp_lowered_risk_with_1000 = did_intervention_succeed*bp_per_billion_if_success*1*K/(1*B)
+
+    risk_reduction = bp_lowered_risk_with_1000*one_basis_point()
 
     dalys_with_risk_aversion = value_gained_by_reducing_x_risk(p_x_risk, risk_reduction, value_status_quo, power)
     return dalys_with_risk_aversion
